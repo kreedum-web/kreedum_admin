@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Boxes, Mail, PackageCheck, PackageOpen, Truck } from "lucide-react";
+import { ArrowRight, Boxes, Mail, PackageCheck, PackageOpen, ShoppingCart, Truck } from "lucide-react";
 import { adminApi, errorMessage } from "../lib/api";
 import { ago, money, number, shortMoney } from "../lib/format";
 import { Card, ErrorBox, NewDot, OrderStatus, PageHeader, PaymentStatus, Spinner, Table } from "../components/ui";
@@ -72,7 +72,8 @@ export default function HomePage() {
           <ToDo to="/orders?status=PENDING" icon={PackageCheck} label="Waiting for confirmation" count={toDo.toConfirm} highlight />
           <ToDo to="/orders?status=TO_SHIP" icon={Boxes} label="To pack & ship" count={toDo.toShip} />
           <ToDo to="/orders?status=IN_TRANSIT" icon={Truck} label="On the way" count={toDo.inTransit} />
-          <ToDo to="/enquiries" icon={Mail} label="New bulk enquiries" count={toDo.newEnquiries} highlight />
+          <ToDo to="/enquiries" icon={Mail} label="New enquiries" count={toDo.newEnquiries} highlight />
+          <ToDo to="/carts?idle=24" icon={ShoppingCart} label="Carts waiting over a day" count={toDo.openCarts || 0} />
           <ToDo to="/products?stock=out_of_stock&state=live" icon={Boxes} label="Live products out of stock" count={toDo.outOfStock} />
         </div>
 

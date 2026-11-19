@@ -5,7 +5,7 @@ import { Search } from "lucide-react";
 import { adminApi, errorMessage } from "../lib/api";
 import { dateTime, money } from "../lib/format";
 import { Card, Empty, ErrorBox, NewDot, OrderStatus, PageHeader, Pagination, PaymentStatus, Spinner, Table, Tabs } from "../components/ui";
-import { useNewOrders } from "../components/NewOrderWatcher";
+import { useNotifications } from "../components/NotificationWatcher";
 
 const TABS = [
   { value: "", label: "All" },
@@ -26,7 +26,7 @@ export default function OrdersPage() {
   const q = params.get("q") || "";
   const payment = params.get("payment") || "";
   const [search, setSearch] = useState(q);
-  const { count: newCount } = useNewOrders();
+  const { newOrders: newCount } = useNotifications();
 
   // Search as you type (after a short pause).
   useEffect(() => {

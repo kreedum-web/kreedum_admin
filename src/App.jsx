@@ -14,6 +14,9 @@ import CustomersPage from "./pages/CustomersPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
 import EnquiriesPage from "./pages/EnquiriesPage";
 import TrafficPage from "./pages/TrafficPage";
+import NotificationsPage from "./pages/NotificationsPage";
+import CartsPage from "./pages/CartsPage";
+import CartDetailPage from "./pages/CartDetailPage";
 
 export default function App() {
   const { admin, checking } = useAuth();
@@ -39,6 +42,9 @@ export default function App() {
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="enquiries" element={<EnquiriesPage />} />
         <Route path="traffic" element={<TrafficPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="carts" element={<CartsPage />} />
+        <Route path="carts/:userId" element={<CartDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

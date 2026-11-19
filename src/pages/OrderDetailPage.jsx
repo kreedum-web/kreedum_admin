@@ -94,7 +94,7 @@ export default function OrderDetailPage() {
   // Opening an order marks it seen: refresh the bell and lists.
   useEffect(() => {
     if (order) {
-      queryClient.invalidateQueries({ queryKey: ["order-feed"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
     }
   }, [order?.id]); // eslint-disable-line react-hooks/exhaustive-deps

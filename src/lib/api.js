@@ -61,6 +61,14 @@ export const adminApi = {
   customers: (params) => api.get("/admin/customers", { params }).then(data),
   customer: (id) => api.get(`/admin/customers/${id}`).then(data),
   setCustomerActive: (id, isActive) => api.patch(`/admin/customers/${id}`, { isActive }).then(data),
+  notifications: () => api.get("/admin/notifications").then(data),
+  markNotificationsRead: (id) => api.post("/admin/notifications/read", id ? { id } : {}).then(data),
+  clearNotifications: () => api.delete("/admin/notifications").then(data),
+
+  carts: (params) => api.get("/admin/carts", { params }).then(data),
+  cartDetail: (userId) => api.get(`/admin/carts/${userId}`).then(data),
+  addFollowUp: (userId, body) => api.post(`/admin/carts/${userId}/follow-ups`, body).then(data),
+
   enquiries: (params) => api.get("/admin/enquiries", { params }).then(data),
   setEnquiryStatus: (id, status) => api.patch(`/admin/enquiries/${id}`, { status }).then(data),
 };
