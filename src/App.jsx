@@ -8,6 +8,7 @@ import OrdersPage from "./pages/OrdersPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductEditPage from "./pages/ProductEditPage";
+import ProductNewPage from "./pages/ProductNewPage";
 import BrandsPage from "./pages/BrandsPage";
 import CategoriesPage from "./pages/CategoriesPage";
 import ContentPage from "./pages/ContentPage";
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="products" element={<ProductsPage />} />
+        <Route path="products/new" element={<ProductNewPage />} />
         <Route path="products/:id" element={<ProductEditPage />} />
         <Route path="brands" element={<BrandsPage />} />
         <Route path="categories" element={<CategoriesPage />} />

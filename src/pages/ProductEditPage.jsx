@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { ArrowDown, ArrowLeft, ArrowUp, ExternalLink, ImagePlus, Lock, RotateCcw, Star, Trash2 } from "lucide-react";
 import { adminApi, errorMessage } from "../lib/api";
-import { bySlugOf, categoryLabel } from "../lib/categories";
+import CategorySelect from "../components/CategorySelect";
+import ProductTextFields from "../components/ProductTextFields";
 import { date, fileToDataUrl, money, STOCK, STORE_URL } from "../lib/format";
 import { Button, Card, ErrorBox, Field, PageHeader, Spinner, Toggle } from "../components/ui";
 
@@ -29,12 +30,15 @@ function formFrom(p) {
     images: p.images || [],
     brand: p.brand || "",
     categorySlug: (p.categoryPath || []).at(-1) || "",
+    // Products added here: their text can be edited too.
+    ...(p.manual ? { sku: p.sku || "", descriptionText: p.descriptionText || "", features: (p.features || []).join("\n") } : {}),
   };
 }
 
 export default function ProductEditPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const fileInput = useRef(null);
   const { data: product, isLoading, error, refetch } = useQuery({ queryKey: ["product", id], queryFn: () => adminApi.product(id) });
   const [form, setForm] = useState(null);
@@ -80,6 +84,17 @@ export default function ProductEditPage() {
     onError: (e) => toast.error(errorMessage(e)),
   });
 
+  const remove = useMutation({
+    mutationFn: () => adminApi.deleteProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast.success("Product deleted");
+      navigate("/products");
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+
   const reset = useMutation({
     mutationFn: () => adminApi.resetProduct(id),
     onSuccess: done("Your changes will be replaced by the supplier's values at the next catalogue sync."),
@@ -114,6 +129,11 @@ export default function ProductEditPage() {
             <a href={`${STORE_URL}/products/${product.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline">
               View on store <ExternalLink className="size-4" />
             </a>
+            {product.manual && (
+              <Button variant="danger" loading={remove.isPending} onClick={() => confirm(`Delete "${product.name}" for good?`) && remove.mutate()}>
+                <Trash2 className="size-4" /> Delete
+              </Button>
+            )}
             <Button loading={save.isPending} onClick={() => save.mutate()}>Save changes</Button>
           </>
         }
@@ -175,6 +195,12 @@ export default function ProductEditPage() {
               </div>
             )}
           </Card>
+
+          {product.manual && (
+            <Card className="space-y-4 p-4">
+              <ProductTextFields form={form} set={set} />
+            </Card>
+          )}
 
           <Card className="p-4">
             <div className="mb-3 flex items-center justify-between">
@@ -276,19 +302,3 @@ export default function ProductEditPage() {
   );
 }
 
-/** Every category, shown as its full path ("Cardio › Walking Pads"), in menu order. */
-function CategorySelect({ categories, value, onChange }) {
-  if (!categories) return <select className="input" disabled><option>Loading…</option></select>;
-  const bySlug = bySlugOf(categories);
-  return (
-    <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
-      {!bySlug.has(value) && <option value={value}>{value || "Choose a category"}</option>}
-      {categories.map((c) => (
-        <option key={c.slug} value={c.slug}>
-          {categoryLabel(c, bySlug)}
-          {c.isActive ? "" : " (hidden)"}
-        </option>
-      ))}
-    </select>
-  );
-}

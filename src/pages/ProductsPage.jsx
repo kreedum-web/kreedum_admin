@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Lock, Search, X } from "lucide-react";
+import { Lock, Plus, Search, X } from "lucide-react";
 import { adminApi, errorMessage } from "../lib/api";
 import { money, STOCK } from "../lib/format";
-import { Badge, Card, Empty, ErrorBox, PageHeader, Pagination, Spinner, Table, Toggle } from "../components/ui";
+import { Badge, Button, Card, Empty, ErrorBox, PageHeader, Pagination, Spinner, Table, Toggle } from "../components/ui";
 
 export default function ProductsPage() {
   const [params, setParams] = useSearchParams();
@@ -49,7 +49,17 @@ export default function ProductsPage() {
 
   return (
     <>
-      <PageHeader title="Products" subtitle="Change prices, stock and photos, or hide a product. Your changes stay even after the next Metro catalogue sync." />
+      <PageHeader
+        title="Products"
+        subtitle="Add products, change prices, stock and photos, or hide a product. Your changes stay even after the next catalogue sync."
+        actions={
+          <Link to="/products/new">
+            <Button>
+              <Plus className="size-4" /> New product
+            </Button>
+          </Link>
+        }
+      />
       <div className="mb-3 flex flex-wrap gap-2">
         <div className="relative min-w-60 flex-1">
           <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-slate-400" />
@@ -108,6 +118,7 @@ export default function ProductsPage() {
                         <p className="flex items-center gap-1.5 text-xs text-slate-500">
                           {p.sku && <span>SKU {p.sku}</span>}
                           {p.variantCount > 0 && <span>· {p.variantCount} options</span>}
+                          {p.manual && <Badge tone="blue">Added here</Badge>}
                           {p.adminLocked.length > 0 && (
                             <span className="inline-flex items-center gap-0.5 text-amber-700" title="Changed by hand: kept during catalogue syncs">
                               <Lock className="size-3" /> edited

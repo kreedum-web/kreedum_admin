@@ -46,7 +46,9 @@ export const adminApi = {
 
   products: (params) => api.get("/admin/products", { params }).then(data),
   product: (id) => api.get(`/admin/products/${id}`).then(data),
+  createProduct: (body) => api.post("/admin/products", body).then(data),
   updateProduct: (id, body) => api.patch(`/admin/products/${id}`, body).then(data),
+  deleteProduct: (id) => api.delete(`/admin/products/${id}`).then(data),
   addProductImage: (id, body) => api.post(`/admin/products/${id}/images`, body).then(data),
   resetProduct: (id) => api.post(`/admin/products/${id}/reset`).then(data),
   brands: () => api.get("/admin/brands").then(data),
