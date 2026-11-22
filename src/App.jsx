@@ -9,6 +9,7 @@ import OrderDetailPage from "./pages/OrderDetailPage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductEditPage from "./pages/ProductEditPage";
 import BrandsPage from "./pages/BrandsPage";
+import CategoriesPage from "./pages/CategoriesPage";
 import ContentPage from "./pages/ContentPage";
 import CustomersPage from "./pages/CustomersPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="products" element={<ProductsPage />} />
         <Route path="products/:id" element={<ProductEditPage />} />
         <Route path="brands" element={<BrandsPage />} />
+        <Route path="categories" element={<CategoriesPage />} />
         <Route path="content" element={<ContentPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerDetailPage />} />

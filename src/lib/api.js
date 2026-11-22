@@ -52,6 +52,12 @@ export const adminApi = {
   brands: () => api.get("/admin/brands").then(data),
   updateBrand: (slug, body) => api.patch(`/admin/brands/${slug}`, body).then(data),
 
+  categories: () => api.get("/admin/categories").then(data),
+  createCategory: (body) => api.post("/admin/categories", body).then(data),
+  updateCategory: (slug, body) => api.patch(`/admin/categories/${slug}`, body).then(data),
+  deleteCategory: (slug) => api.delete(`/admin/categories/${slug}`).then(data),
+  resetCategory: (slug) => api.post(`/admin/categories/${slug}/reset`).then(data),
+
   content: (kind) => api.get(`/admin/content/${kind}`).then(data),
   addContent: (kind, body) => api.post(`/admin/content/${kind}`, body).then(data),
   updateContent: (kind, id, body) => api.patch(`/admin/content/${kind}/${id}`, body).then(data),

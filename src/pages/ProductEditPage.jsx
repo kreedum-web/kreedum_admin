@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { ArrowDown, ArrowLeft, ArrowUp, ExternalLink, ImagePlus, Lock, RotateCcw, Star, Trash2 } from "lucide-react";
 import { adminApi, errorMessage } from "../lib/api";
+import { bySlugOf, categoryLabel } from "../lib/categories";
 import { date, fileToDataUrl, money, STOCK, STORE_URL } from "../lib/format";
 import { Button, Card, ErrorBox, Field, PageHeader, Spinner, Toggle } from "../components/ui";
 
@@ -26,6 +27,8 @@ function formFrom(p) {
     ...Object.fromEntries(FLAGS.map(([k]) => [k, Boolean(p[k])])),
     variants: (p.variants || []).map((v) => ({ variantId: v.variantId, label: v.label, sellingPrice: v.sellingPrice, mrp: v.mrp, inStock: v.inStock !== false })),
     images: p.images || [],
+    brand: p.brand || "",
+    categorySlug: (p.categoryPath || []).at(-1) || "",
   };
 }
 
@@ -35,6 +38,8 @@ export default function ProductEditPage() {
   const fileInput = useRef(null);
   const { data: product, isLoading, error, refetch } = useQuery({ queryKey: ["product", id], queryFn: () => adminApi.product(id) });
   const [form, setForm] = useState(null);
+  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: adminApi.categories });
+  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: adminApi.brands });
 
   useEffect(() => {
     if (product) setForm(formFrom(product));
@@ -49,6 +54,10 @@ export default function ProductEditPage() {
   const save = useMutation({
     mutationFn: () => {
       const body = { ...form };
+      const before = formFrom(product);
+      // Brand and category are only sent when changed, so saving a price doesn't lock them.
+      if (!body.brand.trim() || body.brand.trim() === before.brand) delete body.brand;
+      if (!body.categorySlug || body.categorySlug === before.categorySlug) delete body.categorySlug;
       if (product.variants?.length) {
         delete body.sellingPrice; // set from the options
         delete body.mrp;
@@ -57,7 +66,11 @@ export default function ProductEditPage() {
       }
       return adminApi.updateProduct(id, body);
     },
-    onSuccess: done("Saved. The website shows it within a few minutes."),
+    onSuccess: (p) => {
+      done("Saved. The website shows it within a few minutes.")(p);
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["brands"] });
+    },
     onError: (e) => toast.error(errorMessage(e)),
   });
 
@@ -69,7 +82,7 @@ export default function ProductEditPage() {
 
   const reset = useMutation({
     mutationFn: () => adminApi.resetProduct(id),
-    onSuccess: done("Your changes will be replaced by Metro's values at the next catalogue sync."),
+    onSuccess: done("Your changes will be replaced by the supplier's values at the next catalogue sync."),
     onError: (e) => toast.error(errorMessage(e)),
   });
 
@@ -109,10 +122,10 @@ export default function ProductEditPage() {
       {product.adminLocked.length > 0 && (
         <Card className="mb-5 flex flex-wrap items-center justify-between gap-3 border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <span className="flex items-center gap-2">
-            <Lock className="size-4" /> Changed by hand ({product.adminLocked.join(", ")}). These stay as you set them when the catalogue syncs from Metro.
+            <Lock className="size-4" /> Changed by hand ({product.adminLocked.join(", ")}). These stay as you set them when the catalogue syncs from the suppliers.
           </span>
-          <Button variant="secondary" loading={reset.isPending} onClick={() => confirm("Go back to Metro's values at the next catalogue sync?") && reset.mutate()}>
-            <RotateCcw className="size-4" /> Use Metro's values again
+          <Button variant="secondary" loading={reset.isPending} onClick={() => confirm("Go back to the supplier's values at the next catalogue sync?") && reset.mutate()}>
+            <RotateCcw className="size-4" /> Use the supplier's values again
           </Button>
         </Card>
       )}
@@ -222,6 +235,20 @@ export default function ProductEditPage() {
               <input className="input" value={form.availabilityMessage} onChange={(e) => set("availabilityMessage", e.target.value)} maxLength={200} />
             </Field>
           </Card>
+          <Card className="space-y-4 p-4">
+            <h2 className="text-sm font-semibold text-navy">Brand & category</h2>
+            <Field label="Brand" hint="Pick an existing brand or type a new one.">
+              <input className="input" list="brand-names" value={form.brand} maxLength={60} onChange={(e) => set("brand", e.target.value)} />
+              <datalist id="brand-names">
+                {(brands || []).map((b) => (
+                  <option key={b.slug} value={b.name} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="Category" hint={<>Missing one? <Link to="/categories" className="text-brand hover:underline">Create it under Categories</Link>.</>}>
+              <CategorySelect categories={categories} value={form.categorySlug} onChange={(v) => set("categorySlug", v)} />
+            </Field>
+          </Card>
           <Card className="space-y-3 p-4">
             <h2 className="text-sm font-semibold text-navy">Highlight on the store</h2>
             {FLAGS.map(([k, l]) => (
@@ -246,5 +273,22 @@ export default function ProductEditPage() {
         </div>
       </div>
     </>
+  );
+}
+
+/** Every category, shown as its full path ("Cardio › Walking Pads"), in menu order. */
+function CategorySelect({ categories, value, onChange }) {
+  if (!categories) return <select className="input" disabled><option>Loading…</option></select>;
+  const bySlug = bySlugOf(categories);
+  return (
+    <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
+      {!bySlug.has(value) && <option value={value}>{value || "Choose a category"}</option>}
+      {categories.map((c) => (
+        <option key={c.slug} value={c.slug}>
+          {categoryLabel(c, bySlug)}
+          {c.isActive ? "" : " (hidden)"}
+        </option>
+      ))}
+    </select>
   );
 }

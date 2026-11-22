@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import {
-  BarChart3, Bell, BellRing, Boxes, ExternalLink, Home, Image, LogOut, Mail, Menu, Package,
+  BarChart3, Bell, BellRing, Boxes, ExternalLink, FolderTree, Home, Image, LogOut, Mail, Menu, Package,
   ShoppingCart, Tags, Users, X,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
@@ -13,6 +13,7 @@ const NAV = [
   { to: "/", label: "Home", icon: Home, end: true },
   { to: "/orders", label: "Orders", icon: Package, badge: "orders" },
   { to: "/products", label: "Products", icon: Boxes },
+  { to: "/categories", label: "Categories", icon: FolderTree },
   { to: "/brands", label: "Brands", icon: Tags },
   { to: "/content", label: "Website content", icon: Image },
   { to: "/customers", label: "Customers", icon: Users },

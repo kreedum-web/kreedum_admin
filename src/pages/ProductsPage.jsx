@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Lock, Search } from "lucide-react";
+import { Lock, Search, X } from "lucide-react";
 import { adminApi, errorMessage } from "../lib/api";
 import { money, STOCK } from "../lib/format";
 import { Badge, Card, Empty, ErrorBox, PageHeader, Pagination, Spinner, Table, Toggle } from "../components/ui";
@@ -14,6 +14,7 @@ export default function ProductsPage() {
     state: params.get("state") || "",
     stock: params.get("stock") || "",
     department: params.get("department") || "",
+    category: params.get("category") || "",
     page: Number(params.get("page")) || 1,
   };
   const [search, setSearch] = useState(filters.q);
@@ -72,6 +73,15 @@ export default function ProductsPage() {
             <option key={d} value={d}>{d.replace(/-/g, " ")}</option>
           ))}
         </select>
+        {filters.category && (
+          <button
+            className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700 hover:bg-indigo-100"
+            onClick={() => update({ category: "", page: "" })}
+            title="Clear the category filter"
+          >
+            Category: {filters.category.replace(/-/g, " ")} <X className="size-3.5" />
+          </button>
+        )}
       </div>
 
       {error ? (
