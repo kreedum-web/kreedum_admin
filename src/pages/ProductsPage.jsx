@@ -16,6 +16,7 @@ export default function ProductsPage() {
     department: params.get("department") || "",
     category: params.get("category") || "",
     page: Number(params.get("page")) || 1,
+    brand: params.get("brand") || "",
   };
   const [search, setSearch] = useState(filters.q);
   const queryClient = useQueryClient();
@@ -38,6 +39,16 @@ export default function ProductsPage() {
     placeholderData: keepPreviousData,
   });
 
+  const { data: categories = [] } = useQuery({
+  queryKey: ["categories"],
+  queryFn: adminApi.categories,
+});
+
+const { data: brands = [] } = useQuery({
+  queryKey: ["brands"],
+  queryFn: adminApi.brands,
+});
+
   const setLive = useMutation({
     mutationFn: ({ id, live }) => adminApi.updateProduct(id, { live }),
     onSuccess: (p) => {
@@ -46,6 +57,30 @@ export default function ProductsPage() {
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
+
+  const selectedCategory = categories.find(
+  (c) => c.slug === filters.category
+);
+
+const selectedDepartment =
+  filters.department ||
+  selectedCategory?.path?.[0] ||
+  "";
+
+const selectedSubcategory =
+  selectedCategory?.level === 2
+    ? selectedCategory.slug
+    : selectedCategory?.level === 3
+      ? selectedCategory.path?.[1] || ""
+      : "";
+
+const subcategories = categories.filter(
+  (c) => c.level === 2 && c.path?.[0] === selectedDepartment
+);
+
+const nestedSubcategories = categories.filter(
+  (c) => c.level === 3 && c.path?.[1] === selectedSubcategory
+);
 
   return (
     <>
@@ -77,12 +112,79 @@ export default function ProductsPage() {
             <option key={v} value={v}>{l}</option>
           ))}
         </select>
-        <select className="input !w-auto" value={filters.department} onChange={(e) => update({ department: e.target.value, page: "" })}>
-          <option value="">All departments</option>
-          {(data?.departments || []).map((d) => (
-            <option key={d} value={d}>{d.replace(/-/g, " ")}</option>
-          ))}
-        </select>
+        <select
+  className="input !w-auto"
+  value={filters.brand}
+  onChange={(e) =>
+    update({ brand: e.target.value, page: "" })
+  }
+>
+  <option value="">All brands</option>
+  {brands
+    .filter((b) => b.totalProducts > 0)
+    .map((b) => (
+      <option key={b.slug} value={b.slug}>
+        {b.name}
+      </option>
+    ))}
+</select>
+
+<select
+  className="input !w-auto"
+  value={selectedDepartment}
+  onChange={(e) =>
+    update({
+      department: e.target.value,
+      category: "",
+      page: "",
+    })
+  }
+>
+  <option value="">All departments</option>
+  {categories
+    .filter((c) => c.level === 1)
+    .map((c) => (
+      <option key={c.slug} value={c.slug}>
+        {c.name}
+      </option>
+    ))}
+</select>
+
+{selectedDepartment && (
+  <select
+    className="input !w-auto"
+    value={selectedSubcategory}
+    onChange={(e) =>
+      update({ category: e.target.value, page: "" })
+    }
+  >
+    <option value="">All subcategories</option>
+    {subcategories.map((c) => (
+      <option key={c.slug} value={c.slug}>
+        {c.name}
+      </option>
+    ))}
+  </select>
+)}
+
+{selectedSubcategory && nestedSubcategories.length > 0 && (
+  <select
+    className="input !w-auto"
+    value={filters.category && selectedCategory?.level === 3
+      ? filters.category
+      : ""}
+    onChange={(e) =>
+      update({ category: e.target.value || selectedSubcategory, page: "" })
+    }
+  >
+    <option value="">All nested categories</option>
+    {nestedSubcategories.map((c) => (
+      <option key={c.slug} value={c.slug}>
+        {c.name}
+      </option>
+    ))}
+  </select>
+)}
         {filters.category && (
           <button
             className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700 hover:bg-indigo-100"
