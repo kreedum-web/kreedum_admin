@@ -21,7 +21,8 @@ export default function CategoriesPage() {
   const [creating, setCreating] = useState(null); // { name, parentSlug, displayOrder }
   const [editing, setEditing] = useState(null); // { slug, name, displayOrder }
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["categories"], queryFn: adminApi.categories });
-  const bySlug = useMemo(() => bySlugOf(data), [data]);
+  const categories = data || [];
+  const bySlug = useMemo(() => bySlugOf(categories), [categories]);
 
   const refresh = (message) => () => {
     queryClient.invalidateQueries({ queryKey: ["categories"] });
@@ -56,25 +57,22 @@ export default function CategoriesPage() {
     onError,
   });
 
-  if (isLoading) return <Spinner />;
-  if (error) return <ErrorBox error={errorMessage(error)} retry={refetch} />;
-
   const text = q.trim().toLowerCase();
-  const rows = text ? data.filter((c) => categoryLabel(c, bySlug).toLowerCase().includes(text)) : data;
-  const parents = data.filter((c) => c.level < 3);
+  const rows = text ? categories.filter((c) => categoryLabel(c, bySlug).toLowerCase().includes(text)) : categories;
+  const parents = categories.filter((c) => c.level < 3);
   const childrenByParent = useMemo(() => {
     const map = new Map();
-    for (const c of data) {
+    for (const c of categories) {
       const parentSlug = c.path?.length > 1 ? c.path[c.path.length - 2] : null;
       if (parentSlug) map.set(parentSlug, [...(map.get(parentSlug) || []), c]);
     }
     return map;
-  }, [data]);
+  }, [categories]);
   const visibleRows = useMemo(() => {
     if (text) return rows.map((c) => ({ category: c, depth: 0, showPath: true }));
     const result = [];
     const visit = (parentSlug, depth) => {
-      const items = parentSlug ? childrenByParent.get(parentSlug) || [] : data.filter((c) => c.level === 1);
+      const items = parentSlug ? childrenByParent.get(parentSlug) || [] : categories.filter((c) => c.level === 1);
       for (const category of items) {
         result.push({ category, depth, showPath: false });
         if (expanded.has(category.slug)) visit(category.slug, depth + 1);
@@ -82,7 +80,10 @@ export default function CategoriesPage() {
     };
     visit(null, 0);
     return result;
-  }, [text, rows, data, childrenByParent, expanded]);
+  }, [text, rows, categories, childrenByParent, expanded]);
+
+  if (isLoading) return <Spinner />;
+  if (error) return <ErrorBox error={errorMessage(error)} retry={refetch} />;
 
   return (
     <>
@@ -138,7 +139,8 @@ export default function CategoriesPage() {
                     )}
                     {!c.isActive && <Badge tone="gray">Hidden</Badge>}
                   </div>
-                </td>                <td className="px-4 py-2 text-right tabular-nums">
+                </td>
+                <td className="px-4 py-2 text-right tabular-nums">
                   <Link to={`/products?category=${c.slug}`} className="hover:text-brand hover:underline" title="All products, including hidden ones">
                     {c.liveProducts}
                     {c.totalProducts !== c.liveProducts && <span className="text-slate-400"> / {c.totalProducts}</span>}
