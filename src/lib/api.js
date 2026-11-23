@@ -54,7 +54,7 @@ export const adminApi = {
   brands: () => api.get("/admin/brands").then(data),
   updateBrand: (slug, body) => api.patch(`/admin/brands/${slug}`, body).then(data),
 
-  categories: () => api.get("/admin/categories").then(data),
+  categories: (params = {}) =>api.get("/admin/categories", { params }).then(data),
   createCategory: (body) => api.post("/admin/categories", body).then(data),
   updateCategory: (slug, body) => api.patch(`/admin/categories/${slug}`, body).then(data),
   deleteCategory: (slug) => api.delete(`/admin/categories/${slug}`).then(data),

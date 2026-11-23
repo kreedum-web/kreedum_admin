@@ -17,10 +17,21 @@ import { Badge, Button, Card, Empty, ErrorBox, Field, Modal, PageHeader, Spinner
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
   const [q, setQ] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
   const [expanded, setExpanded] = useState(() => new Set());
   const [creating, setCreating] = useState(null); // { name, parentSlug, displayOrder }
   const [editing, setEditing] = useState(null); // { slug, name, displayOrder }
-  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["categories"], queryFn: adminApi.categories });
+  const {data,isLoading,error,refetch,} = useQuery({queryKey: ["categories", brandFilter, departmentFilter],queryFn: () =>adminApi.categories({  brand: brandFilter,  department: departmentFilter,}),
+});
+
+  const {
+    data: brandsData = [],
+    isLoading: brandsLoading,
+  } = useQuery({
+    queryKey: ["brands"],
+    queryFn: adminApi.brands,
+  });
   const categories = data || [];
   const bySlug = useMemo(() => bySlugOf(categories), [categories]);
 
@@ -57,22 +68,54 @@ export default function CategoriesPage() {
     onError,
   });
 
-  const text = q.trim().toLowerCase();
-  const rows = text ? categories.filter((c) => categoryLabel(c, bySlug).toLowerCase().includes(text)) : categories;
+ 
   const parents = categories.filter((c) => c.level < 3);
-  const childrenByParent = useMemo(() => {
-    const map = new Map();
-    for (const c of categories) {
-      const parentSlug = c.path?.length > 1 ? c.path[c.path.length - 2] : null;
-      if (parentSlug) map.set(parentSlug, [...(map.get(parentSlug) || []), c]);
+  const filteredCategories = useMemo(() => {
+  return categories.filter((c) => {
+    if (
+      departmentFilter &&
+      c.path?.[0] !== departmentFilter
+    ) {
+      return false;
     }
-    return map;
-  }, [categories]);
+
+    if (brandFilter && c.totalProducts === 0) {
+      return false;
+    }
+
+    return true;
+  });
+}, [categories, departmentFilter, brandFilter]);
+
+ const text = q.trim().toLowerCase();
+  const rows = text ? categories.filter((c) => categoryLabel(c, bySlug).toLowerCase().includes(text)) : categories;
+
+const childrenByParent = useMemo(() => {
+  const map = new Map();
+
+  for (const c of filteredCategories) {
+    const parentSlug =
+      c.path?.length > 1
+        ? c.path[c.path.length - 2]
+        : null;
+
+    if (parentSlug) {
+      map.set(parentSlug, [
+        ...(map.get(parentSlug) || []),
+        c,
+      ]);
+    }
+  }
+
+  return map;
+}, [filteredCategories]);
   const visibleRows = useMemo(() => {
     if (text) return rows.map((c) => ({ category: c, depth: 0, showPath: true }));
     const result = [];
     const visit = (parentSlug, depth) => {
-      const items = parentSlug ? childrenByParent.get(parentSlug) || [] : categories.filter((c) => c.level === 1);
+const items = parentSlug
+  ? childrenByParent.get(parentSlug) || []
+  : filteredCategories.filter((c) => c.level === 1);
       for (const category of items) {
         result.push({ category, depth, showPath: false });
         if (expanded.has(category.slug)) visit(category.slug, depth + 1);
@@ -80,7 +123,7 @@ export default function CategoriesPage() {
     };
     visit(null, 0);
     return result;
-  }, [text, rows, categories, childrenByParent, expanded]);
+  }, [text, rows, categories, filteredCategories,childrenByParent, expanded]);
 
   if (isLoading) return <Spinner />;
   if (error) return <ErrorBox error={errorMessage(error)} retry={refetch} />;
@@ -96,12 +139,75 @@ export default function CategoriesPage() {
           </Button>
         }
       />
-      <div className="relative mb-3 max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-slate-400" />
-        <input className="input !pl-9" placeholder="Find a category" value={q} onChange={(e) => setQ(e.target.value)} />
-      </div>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+  <div className="relative w-full sm:max-w-sm">
+    <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-slate-400" />
+
+    <input
+      className="input !pl-9"
+      placeholder="Find a category"
+      value={q}
+      onChange={(e) => setQ(e.target.value)}
+    />
+  </div>
+
+  <select
+    className="input w-full sm:max-w-xs"
+    value={brandFilter}
+    disabled={brandsLoading}
+    onChange={(e) => {
+      setBrandFilter(e.target.value);
+      setExpanded(new Set());
+    }}
+  >
+    <option value="">All brands</option>
+
+    {brandsData.map((brand) => (
+      <option key={brand.slug} value={brand.slug}>
+        {brand.name}
+      </option>
+    ))}
+  </select>
+
+  <select
+    className="input w-full sm:max-w-xs"
+    value={departmentFilter}
+    onChange={(e) => {
+      setDepartmentFilter(e.target.value);
+      setExpanded(new Set());
+    }}
+  >
+    <option value="">All departments</option>
+
+    {categories
+      .filter((c) => c.level === 1)
+      .map((department) => (
+        <option
+          key={department.slug}
+          value={department.slug}
+        >
+          {department.name}
+        </option>
+      ))}
+  </select>
+
+  {(brandFilter || departmentFilter || q) && (
+    <button
+      type="button"
+      className="text-sm font-medium text-slate-500 hover:text-navy"
+      onClick={() => {
+        setBrandFilter("");
+        setDepartmentFilter("");
+        setQ("");
+        setExpanded(new Set());
+      }}
+    >
+      Clear filters
+    </button>
+  )}
+</div>
       <Card>
-        {rows.length === 0 ? (
+        {visibleRows.length === 0 ? (
           <Empty title="No categories found" />
         ) : (
           <Table head={["Category", { label: "Products on website", right: true }, "Order", "In menu", ""]}>
