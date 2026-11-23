@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import clsx from "clsx";
-import { Lock, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Lock, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { adminApi, errorMessage } from "../lib/api";
 import { bySlugOf, categoryLabel } from "../lib/categories";
 import { Badge, Button, Card, Empty, ErrorBox, Field, Modal, PageHeader, Spinner, Table, Toggle } from "../components/ui";
@@ -17,10 +17,12 @@ import { Badge, Button, Card, Empty, ErrorBox, Field, Modal, PageHeader, Spinner
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
   const [q, setQ] = useState("");
+  const [expanded, setExpanded] = useState(() => new Set());
   const [creating, setCreating] = useState(null); // { name, parentSlug, displayOrder }
   const [editing, setEditing] = useState(null); // { slug, name, displayOrder }
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["categories"], queryFn: adminApi.categories });
-  const bySlug = useMemo(() => bySlugOf(data), [data]);
+  const categories = data || [];
+  const bySlug = useMemo(() => bySlugOf(categories), [categories]);
 
   const refresh = (message) => () => {
     queryClient.invalidateQueries({ queryKey: ["categories"] });
@@ -55,12 +57,33 @@ export default function CategoriesPage() {
     onError,
   });
 
+  const text = q.trim().toLowerCase();
+  const rows = text ? categories.filter((c) => categoryLabel(c, bySlug).toLowerCase().includes(text)) : categories;
+  const parents = categories.filter((c) => c.level < 3);
+  const childrenByParent = useMemo(() => {
+    const map = new Map();
+    for (const c of categories) {
+      const parentSlug = c.path?.length > 1 ? c.path[c.path.length - 2] : null;
+      if (parentSlug) map.set(parentSlug, [...(map.get(parentSlug) || []), c]);
+    }
+    return map;
+  }, [categories]);
+  const visibleRows = useMemo(() => {
+    if (text) return rows.map((c) => ({ category: c, depth: 0, showPath: true }));
+    const result = [];
+    const visit = (parentSlug, depth) => {
+      const items = parentSlug ? childrenByParent.get(parentSlug) || [] : categories.filter((c) => c.level === 1);
+      for (const category of items) {
+        result.push({ category, depth, showPath: false });
+        if (expanded.has(category.slug)) visit(category.slug, depth + 1);
+      }
+    };
+    visit(null, 0);
+    return result;
+  }, [text, rows, categories, childrenByParent, expanded]);
+
   if (isLoading) return <Spinner />;
   if (error) return <ErrorBox error={errorMessage(error)} retry={refetch} />;
-
-  const text = q.trim().toLowerCase();
-  const rows = text ? data.filter((c) => categoryLabel(c, bySlug).toLowerCase().includes(text)) : data;
-  const parents = data.filter((c) => c.level < 3);
 
   return (
     <>
@@ -82,13 +105,32 @@ export default function CategoriesPage() {
           <Empty title="No categories found" />
         ) : (
           <Table head={["Category", { label: "Products on website", right: true }, "Order", "In menu", ""]}>
-            {rows.map((c) => (
+            {visibleRows.map(({ category: c, depth, showPath }) => {
+              const hasChildren = (childrenByParent.get(c.slug) || []).length > 0;
+              return (
               <tr key={c.slug} className="hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <div className={clsx("flex flex-wrap items-center gap-2", !text && c.level === 2 && "pl-6", !text && c.level === 3 && "pl-12")}>
+                  <div className="flex flex-wrap items-center gap-2" style={{ paddingLeft: `${depth * 24}px` }}>
+                    {hasChildren && !showPath ? (
+                      <button
+                        type="button"
+                        className="rounded p-1 text-slate-500 hover:bg-slate-100"
+                        aria-label={`${expanded.has(c.slug) ? "Collapse" : "Expand"} ${c.name}`}
+                        aria-expanded={expanded.has(c.slug)}
+                        onClick={() => setExpanded((current) => {
+                          const next = new Set(current);
+                          if (next.has(c.slug)) next.delete(c.slug);
+                          else next.add(c.slug);
+                          return next;
+                        })}
+                      >
+                        {expanded.has(c.slug) ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                      </button>
+                    ) : <span className="w-6" />}
                     <span className={clsx(c.level === 1 ? "font-semibold text-navy" : "text-slate-800")}>
-                      {text ? categoryLabel(c, bySlug) : c.name}
+                      {showPath ? categoryLabel(c, bySlug) : c.name}
                     </span>
+                    {hasChildren && !showPath && <span className="text-xs text-slate-400">{childrenByParent.get(c.slug).length}</span>}
                     {c.fromAdmin && <Badge tone="blue">Made here</Badge>}
                     {!c.fromAdmin && c.adminLocked.length > 0 && (
                       <Badge tone="amber">
@@ -153,13 +195,13 @@ export default function CategoriesPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </Table>
         )}
       </Card>
       <p className="mt-2 text-xs text-slate-400">
-        Hidden categories disappear from the store's menu; their products can still be found by search. To move a product, open it under
-        Products and choose its category.
+        Select a parent category to expand or collapse its subcategories. Hidden categories disappear from the store's menu; their products can still be found by search. To move a product, open it under Products and choose its category.
       </p>
 
       <Modal
