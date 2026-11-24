@@ -14,6 +14,7 @@ const FLAGS = [
   ["isBestSeller", "Best seller"],
   ["isNewArrival", "New arrival"],
   ["isTrending", "Trending"],
+  ["readyStock", "Ready stock (in our store)"],
 ];
 
 function formFrom(p) {
@@ -291,7 +292,11 @@ export default function ProductEditPage() {
             </Field>
           </Card>
           <Card className="space-y-3 p-4">
-            <h2 className="text-sm font-semibold text-navy">Highlight on the store</h2>
+            <h2 className="text-sm font-semibold text-navy">Home page rows</h2>
+            <p className="-mt-2 text-xs text-slate-400">
+              Ticked products come first in that row. Ready stock = in our store, fastest delivery.{" "}
+              <Link to="/homepage" className="text-brand hover:underline">Set up the rows</Link>
+            </p>
             {FLAGS.map(([k, l]) => (
               <div key={k} className="flex items-center justify-between text-sm">
                 {l}

@@ -11,6 +11,8 @@ import ProductEditPage from "./pages/ProductEditPage";
 import ProductNewPage from "./pages/ProductNewPage";
 import BrandsPage from "./pages/BrandsPage";
 import CategoriesPage from "./pages/CategoriesPage";
+import HomeSectionsPage from "./pages/HomeSectionsPage";
+import HomeSectionEditPage from "./pages/HomeSectionEditPage";
 import ContentPage from "./pages/ContentPage";
 import CustomersPage from "./pages/CustomersPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
@@ -42,6 +44,8 @@ export default function App() {
         <Route path="brands" element={<BrandsPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="content" element={<ContentPage />} />
+        <Route path="homepage" element={<HomeSectionsPage />} />
+        <Route path="homepage/:id" element={<HomeSectionEditPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="enquiries" element={<EnquiriesPage />} />

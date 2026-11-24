@@ -51,6 +51,18 @@ export const adminApi = {
   deleteProduct: (id) => api.delete(`/admin/products/${id}`).then(data),
   /** Show / hide every product matching the filters; dryRun only counts. */
   bulkProductsLive: (body) => api.post("/admin/products/bulk-live", body).then(data),
+  /** Mark / unmark every product matching the filters as ready stock; dryRun only counts. */
+  bulkReadyStock: (body) => api.post("/admin/products/bulk-ready-stock", body).then(data),
+
+  // Home page product rows
+  homeSections: () => api.get("/admin/home-sections").then(data),
+  createHomeSection: (body) => api.post("/admin/home-sections", body).then(data),
+  updateHomeSection: (id, body) => api.patch(`/admin/home-sections/${id}`, body).then(data),
+  deleteHomeSection: (id) => api.delete(`/admin/home-sections/${id}`).then(data),
+  reorderHomeSections: (ids) => api.post("/admin/home-sections/reorder", { ids }).then(data),
+  homeSectionPicks: (id) => api.get(`/admin/home-sections/${id}/picks`).then(data),
+  setHomeSectionPicks: (id, productIds) => api.put(`/admin/home-sections/${id}/picks`, { productIds }).then(data),
+  homeSectionPreview: (id) => api.get(`/admin/home-sections/${id}/preview`).then(data),
   addProductImage: (id, body) => api.post(`/admin/products/${id}/images`, body).then(data),
   resetProduct: (id) => api.post(`/admin/products/${id}/reset`).then(data),
   brands: () => api.get("/admin/brands").then(data),
