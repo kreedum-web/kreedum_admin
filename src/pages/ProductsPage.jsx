@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Lock, Plus, Search, X } from "lucide-react";
+import { Eye, EyeOff, Lock, Plus, Search, X } from "lucide-react";
 import { adminApi, errorMessage } from "../lib/api";
 import { money, STOCK } from "../lib/format";
-import { Badge, Button, Card, Empty, ErrorBox, PageHeader, Pagination, Spinner, Table, Toggle } from "../components/ui";
+import { Badge, Button, Card, Empty, ErrorBox, Modal, PageHeader, Pagination, Spinner, Table, Toggle } from "../components/ui";
 
 export default function ProductsPage() {
   const [params, setParams] = useSearchParams();
@@ -62,6 +62,29 @@ export default function ProductsPage() {
   const subcategories = categories.filter((c) => c.level === 2 && c.path?.[0] === department);
   const nestedCategories = categories.filter((c) => c.level === 3 && c.path?.[1] === subcategory);
   const anyFilter = ["q", "state", "stock", "brand", "department", "category"].some((k) => filters[k]);
+
+  // ---- bulk show / hide: every product matching the filters (all pages)
+  const [bulk, setBulk] = useState(null); // { live, preview }
+  const bulkFilters = { q: filters.q, brand: filters.brand, department: filters.department, category: filters.category, state: filters.state, stock: filters.stock };
+  const previewBulk = useMutation({
+    mutationFn: (live) => adminApi.bulkProductsLive({ filters: bulkFilters, live, dryRun: true }),
+    onSuccess: (preview, live) => setBulk({ live, preview }),
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  const applyBulk = useMutation({
+    mutationFn: () => adminApi.bulkProductsLive({ filters: bulkFilters, live: bulk.live }),
+    onSuccess: (r) => {
+      setBulk(null);
+      ["products", "categories", "brands"].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+      const n = (k) => `${k} product${k === 1 ? "" : "s"}`;
+      toast.success(
+        bulk.live
+          ? `${n(r.changed)} shown on the website${r.waiting ? `; ${r.waiting} will show once their category or brand is on` : ""}`
+          : `${n(r.changed)} hidden from the website`
+      );
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
 
   return (
     <>
@@ -152,6 +175,21 @@ export default function ProductsPage() {
         )}
       </div>
 
+      {anyFilter && data?.total > 0 && (
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+          <span className="text-slate-600">
+            {data.total} product{data.total === 1 ? "" : "s"} match these filters{data.pages > 1 ? ` (all ${data.pages} pages)` : ""}.
+          </span>
+          <span className="flex gap-2">
+            <Button variant="secondary" loading={previewBulk.isPending && previewBulk.variables === true} disabled={previewBulk.isPending} onClick={() => previewBulk.mutate(true)}>
+              <Eye className="size-4" /> Show all
+            </Button>
+            <Button variant="secondary" loading={previewBulk.isPending && previewBulk.variables === false} disabled={previewBulk.isPending} onClick={() => previewBulk.mutate(false)}>
+              <EyeOff className="size-4" /> Hide all
+            </Button>
+          </span>
+        </div>
+      )}
       {error ? (
         <ErrorBox error={errorMessage(error)} retry={refetch} />
       ) : (
@@ -216,6 +254,55 @@ export default function ProductsPage() {
           {data && <Pagination page={data.page} pages={data.pages} total={data.total} onPage={(p) => update({ page: String(p) })} />}
         </Card>
       )}
+
+      <Modal
+        open={Boolean(bulk)}
+        title={bulk?.live ? "Show these products on the website?" : "Hide these products from the website?"}
+        onClose={() => setBulk(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setBulk(null)}>Cancel</Button>
+            <Button
+              variant={bulk?.live ? "primary" : "danger"}
+              loading={applyBulk.isPending}
+              disabled={!bulk?.preview.changed && !(bulk?.live && bulk?.preview.waiting)}
+              onClick={() => applyBulk.mutate()}
+            >
+              {bulk?.live ? `Show ${bulk?.preview.changed}` : `Hide ${bulk?.preview.changed}`}
+            </Button>
+          </>
+        }
+      >
+        {bulk && <BulkPreview live={bulk.live} preview={bulk.preview} />}
+      </Modal>
     </>
+  );
+}
+
+/** What a bulk show / hide will do, from its dry run. */
+function BulkPreview({ live, preview: p }) {
+  const n = (k) => `${k} product${k === 1 ? "" : "s"}`;
+  return (
+    <div className="space-y-2 text-sm text-slate-700">
+      <p>Of the {n(p.matched)} matching your filters (every page, not only this one):</p>
+      <ul className="list-disc space-y-1 pl-5">
+        <li>
+          <b>{n(p.changed)}</b> will be {live ? "shown" : "hidden"}.
+        </li>
+        {p.already > 0 && <li>{n(p.already)} {p.already === 1 ? "is" : "are"} already {live ? "shown" : "hidden"}.</li>}
+        {live && p.waiting > 0 && (
+          <li>
+            {n(p.waiting)} stay hidden because their category or brand is hidden; they'll show once that is switched on.
+          </li>
+        )}
+        {live && p.bySync > 0 && (
+          <li>
+            {n(p.bySync)} were hidden by the catalogue sync (no longer at the supplier, or no category) and are left as they are. Open
+            one to switch it on by hand.
+          </li>
+        )}
+      </ul>
+      {!live && p.changed > 0 && <p className="text-slate-500">They stay hidden after catalogue syncs, until you show them again.</p>}
+    </div>
   );
 }

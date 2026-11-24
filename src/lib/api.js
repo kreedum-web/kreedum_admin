@@ -49,6 +49,8 @@ export const adminApi = {
   createProduct: (body) => api.post("/admin/products", body).then(data),
   updateProduct: (id, body) => api.patch(`/admin/products/${id}`, body).then(data),
   deleteProduct: (id) => api.delete(`/admin/products/${id}`).then(data),
+  /** Show / hide every product matching the filters; dryRun only counts. */
+  bulkProductsLive: (body) => api.post("/admin/products/bulk-live", body).then(data),
   addProductImage: (id, body) => api.post(`/admin/products/${id}/images`, body).then(data),
   resetProduct: (id) => api.post(`/admin/products/${id}/reset`).then(data),
   brands: () => api.get("/admin/brands").then(data),
