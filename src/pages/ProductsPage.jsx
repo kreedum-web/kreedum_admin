@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Eye, EyeOff, Lock, Plus, Search, X } from "lucide-react";
+import { Eye, EyeOff, Lock, Plus, Search, Store, X } from "lucide-react";
 import { adminApi, errorMessage } from "../lib/api";
 import { money, STOCK } from "../lib/format";
 import { Badge, Button, Card, Empty, ErrorBox, Modal, PageHeader, Pagination, Spinner, Table, Toggle } from "../components/ui";
@@ -12,6 +12,7 @@ export default function ProductsPage() {
   const filters = {
     q: params.get("q") || "",
     state: params.get("state") || "",
+    highlight: params.get("highlight") || "",
     stock: params.get("stock") || "",
     department: params.get("department") || "",
     category: params.get("category") || "",
@@ -61,11 +62,14 @@ export default function ProductsPage() {
   const departments = categories.filter((c) => c.level === 1);
   const subcategories = categories.filter((c) => c.level === 2 && c.path?.[0] === department);
   const nestedCategories = categories.filter((c) => c.level === 3 && c.path?.[1] === subcategory);
-  const anyFilter = ["q", "state", "stock", "brand", "department", "category"].some((k) => filters[k]);
+  const anyFilter = ["q", "state", "stock", "brand", "department", "category", "highlight"].some((k) => filters[k]);
 
   // ---- bulk show / hide: every product matching the filters (all pages)
   const [bulk, setBulk] = useState(null); // { live, preview }
-  const bulkFilters = { q: filters.q, brand: filters.brand, department: filters.department, category: filters.category, state: filters.state, stock: filters.stock };
+  const bulkFilters = {
+    q: filters.q, brand: filters.brand, department: filters.department, category: filters.category,
+    state: filters.state, stock: filters.stock, highlight: filters.highlight,
+  };
   const previewBulk = useMutation({
     mutationFn: (live) => adminApi.bulkProductsLive({ filters: bulkFilters, live, dryRun: true }),
     onSuccess: (preview, live) => setBulk({ live, preview }),
@@ -82,6 +86,29 @@ export default function ProductsPage() {
           ? `${n(r.changed)} shown on the website${r.waiting ? `; ${r.waiting} will show once their category or brand is on` : ""}`
           : `${n(r.changed)} hidden from the website`
       );
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+
+  // ---- bulk ready stock (in our store: fastest delivery)
+  const readyStock = useMutation({
+    mutationFn: async (mark) => {
+      const preview = await adminApi.bulkReadyStock({ filters: bulkFilters, readyStock: mark, dryRun: true });
+      if (!preview.changed) return { ...preview, skipped: true, mark };
+      const n = (k) => `${k} product${k === 1 ? "" : "s"}`;
+      const ok = confirm(
+        mark
+          ? `Mark ${n(preview.changed)} as ready stock (in our store, fastest delivery)?${preview.already ? ` ${preview.already} already are.` : ""}\n\nThey'll show in the home page's Ready Stock row.`
+          : `Remove ready stock from ${n(preview.changed)}?`
+      );
+      if (!ok) return { cancelled: true };
+      return { ...(await adminApi.bulkReadyStock({ filters: bulkFilters, readyStock: mark })), mark };
+    },
+    onSuccess: (r) => {
+      if (r.cancelled) return;
+      if (r.skipped) return toast(`All ${r.matched} already ${r.mark ? "are" : "aren't"} ready stock.`);
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast.success(`${r.changed} product${r.changed === 1 ? "" : "s"} ${r.mark ? "marked" : "no longer"} ready stock`);
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
@@ -109,6 +136,14 @@ export default function ProductsPage() {
           <option value="live">Shown on website</option>
           <option value="hidden">Hidden</option>
           <option value="locked">Changed by hand</option>
+        </select>
+        <select className="input !w-auto" value={filters.highlight} onChange={(e) => update({ highlight: e.target.value, page: "" })}>
+          <option value="">Any highlight</option>
+          <option value="featured">Featured</option>
+          <option value="bestseller">Best seller</option>
+          <option value="new">New arrival</option>
+          <option value="trending">Trending</option>
+          <option value="ready-stock">Ready stock</option>
         </select>
         <select className="input !w-auto" value={filters.stock} onChange={(e) => update({ stock: e.target.value, page: "" })}>
           <option value="">Any stock</option>
@@ -187,6 +222,15 @@ export default function ProductsPage() {
             <Button variant="secondary" loading={previewBulk.isPending && previewBulk.variables === false} disabled={previewBulk.isPending} onClick={() => previewBulk.mutate(false)}>
               <EyeOff className="size-4" /> Hide all
             </Button>
+            {filters.highlight === "ready-stock" ? (
+              <Button variant="secondary" loading={readyStock.isPending} onClick={() => readyStock.mutate(false)}>
+                <Store className="size-4" /> Remove ready stock
+              </Button>
+            ) : (
+              <Button variant="secondary" loading={readyStock.isPending} onClick={() => readyStock.mutate(true)}>
+                <Store className="size-4" /> Mark ready stock
+              </Button>
+            )}
           </span>
         </div>
       )}
@@ -215,6 +259,7 @@ export default function ProductsPage() {
                           {p.sku && <span>SKU {p.sku}</span>}
                           {p.variantCount > 0 && <span>· {p.variantCount} options</span>}
                           {p.manual && <Badge tone="blue">Added here</Badge>}
+                          {p.readyStock && <Badge tone="green">Ready stock</Badge>}
                           {p.adminLocked.length > 0 && (
                             <span className="inline-flex items-center gap-0.5 text-amber-700" title="Changed by hand: kept during catalogue syncs">
                               <Lock className="size-3" /> edited
