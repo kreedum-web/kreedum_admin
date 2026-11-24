@@ -39,15 +39,9 @@ export default function ProductsPage() {
     placeholderData: keepPreviousData,
   });
 
-  const { data: categories = [] } = useQuery({
-  queryKey: ["categories"],
-  queryFn: adminApi.categories,
-});
-
-const { data: brands = [] } = useQuery({
-  queryKey: ["brands"],
-  queryFn: adminApi.brands,
-});
+  // Lists for the filter menus (counts across every brand / department).
+  const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: () => adminApi.categories() });
+  const { data: brands = [] } = useQuery({ queryKey: ["brands"], queryFn: () => adminApi.brands() });
 
   const setLive = useMutation({
     mutationFn: ({ id, live }) => adminApi.updateProduct(id, { live }),
@@ -58,29 +52,16 @@ const { data: brands = [] } = useQuery({
     onError: (e) => toast.error(errorMessage(e)),
   });
 
-  const selectedCategory = categories.find(
-  (c) => c.slug === filters.category
-);
-
-const selectedDepartment =
-  filters.department ||
-  selectedCategory?.path?.[0] ||
-  "";
-
-const selectedSubcategory =
-  selectedCategory?.level === 2
-    ? selectedCategory.slug
-    : selectedCategory?.level === 3
-      ? selectedCategory.path?.[1] || ""
-      : "";
-
-const subcategories = categories.filter(
-  (c) => c.level === 2 && c.path?.[0] === selectedDepartment
-);
-
-const nestedSubcategories = categories.filter(
-  (c) => c.level === 3 && c.path?.[1] === selectedSubcategory
-);
+  // Department › sub-category › nested category, worked out from ?department= and ?category=.
+  const selectedCategory = categories.find((c) => c.slug === filters.category);
+  const selectedPath = selectedCategory?.path || [];
+  const department = selectedPath[0] || filters.department;
+  const subcategory = selectedPath[1] || "";
+  const nested = selectedPath[2] || "";
+  const departments = categories.filter((c) => c.level === 1);
+  const subcategories = categories.filter((c) => c.level === 2 && c.path?.[0] === department);
+  const nestedCategories = categories.filter((c) => c.level === 3 && c.path?.[1] === subcategory);
+  const anyFilter = ["q", "state", "stock", "brand", "department", "category"].some((k) => filters[k]);
 
   return (
     <>
@@ -112,86 +93,61 @@ const nestedSubcategories = categories.filter(
             <option key={v} value={v}>{l}</option>
           ))}
         </select>
+        <select className="input !w-auto" value={filters.brand} onChange={(e) => update({ brand: e.target.value, page: "" })}>
+          <option value="">All brands</option>
+          {brands
+            .filter((b) => b.totalProducts > 0 || b.slug === filters.brand)
+            .map((b) => (
+              <option key={b.slug} value={b.slug}>{b.name}</option>
+            ))}
+        </select>
         <select
-  className="input !w-auto"
-  value={filters.brand}
-  onChange={(e) =>
-    update({ brand: e.target.value, page: "" })
-  }
->
-  <option value="">All brands</option>
-  {brands
-    .filter((b) => b.totalProducts > 0)
-    .map((b) => (
-      <option key={b.slug} value={b.slug}>
-        {b.name}
-      </option>
-    ))}
-</select>
-
-<select
-  className="input !w-auto"
-  value={selectedDepartment}
-  onChange={(e) =>
-    update({
-      department: e.target.value,
-      category: "",
-      page: "",
-    })
-  }
->
-  <option value="">All departments</option>
-  {categories
-    .filter((c) => c.level === 1)
-    .map((c) => (
-      <option key={c.slug} value={c.slug}>
-        {c.name}
-      </option>
-    ))}
-</select>
-
-{selectedDepartment && (
-  <select
-    className="input !w-auto"
-    value={selectedSubcategory}
-    onChange={(e) =>
-      update({ category: e.target.value, page: "" })
-    }
-  >
-    <option value="">All subcategories</option>
-    {subcategories.map((c) => (
-      <option key={c.slug} value={c.slug}>
-        {c.name}
-      </option>
-    ))}
-  </select>
-)}
-
-{selectedSubcategory && nestedSubcategories.length > 0 && (
-  <select
-    className="input !w-auto"
-    value={filters.category && selectedCategory?.level === 3
-      ? filters.category
-      : ""}
-    onChange={(e) =>
-      update({ category: e.target.value || selectedSubcategory, page: "" })
-    }
-  >
-    <option value="">All nested categories</option>
-    {nestedSubcategories.map((c) => (
-      <option key={c.slug} value={c.slug}>
-        {c.name}
-      </option>
-    ))}
-  </select>
-)}
-        {filters.category && (
-          <button
-            className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700 hover:bg-indigo-100"
-            onClick={() => update({ category: "", page: "" })}
-            title="Clear the category filter"
+          className="input !w-auto"
+          value={department}
+          onChange={(e) => update({ department: e.target.value, category: "", page: "" })}
+        >
+          <option value="">All departments</option>
+          {departments.map((c) => (
+            <option key={c.slug} value={c.slug}>{c.name}</option>
+          ))}
+        </select>
+        {department && subcategories.length > 0 && (
+          <select
+            className="input !w-auto"
+            value={subcategory}
+            onChange={(e) => update({ department, category: e.target.value, page: "" })}
           >
-            Category: {filters.category.replace(/-/g, " ")} <X className="size-3.5" />
+            <option value="">All of {departments.find((d) => d.slug === department)?.name || "it"}</option>
+            {subcategories.map((c) => (
+              <option key={c.slug} value={c.slug}>{c.name}</option>
+            ))}
+          </select>
+        )}
+        {subcategory && nestedCategories.length > 0 && (
+          <select
+            className="input !w-auto"
+            value={nested}
+            onChange={(e) => update({ department, category: e.target.value || subcategory, page: "" })}
+          >
+            <option value="">All of {subcategories.find((c) => c.slug === subcategory)?.name || "it"}</option>
+            {nestedCategories.map((c) => (
+              <option key={c.slug} value={c.slug}>{c.name}</option>
+            ))}
+          </select>
+        )}
+        {filters.category && !selectedCategory && categories.length > 0 && (
+          <span className="self-center text-sm text-amber-700">Category “{filters.category}” no longer exists.</span>
+        )}
+        {anyFilter && (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 self-center text-sm font-medium text-slate-500 hover:text-navy"
+            onClick={() => {
+              setSearch("");
+              setParams(new URLSearchParams());
+            }}
+          >
+            <X className="size-3.5" /> Clear filters
           </button>
         )}
       </div>

@@ -34,8 +34,8 @@ export default function ProductNewPage() {
   const [form, setForm] = useState(EMPTY);
   const [photos, setPhotos] = useState([]); // [{ file, preview }]
   const [progress, setProgress] = useState("");
-  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: adminApi.categories });
-  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: adminApi.brands });
+  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => adminApi.categories() });
+  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => adminApi.brands() });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   // Free the photo previews when leaving the page.

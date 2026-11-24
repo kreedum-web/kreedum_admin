@@ -35,6 +35,13 @@ function formFrom(p) {
   };
 }
 
+// Hidden by a brand / category switch: switching the product on here isn't enough.
+const HIDDEN_BECAUSE = {
+  "admin-category": "Hidden because its category (or one above it) is hidden. Show the category under Categories, or move the product to another category.",
+  "admin-brand": "Hidden because its brand is switched off under Brands.",
+  "brand-rule": "Hidden because its brand is on the not-sold list.",
+};
+
 export default function ProductEditPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
@@ -42,8 +49,8 @@ export default function ProductEditPage() {
   const fileInput = useRef(null);
   const { data: product, isLoading, error, refetch } = useQuery({ queryKey: ["product", id], queryFn: () => adminApi.product(id) });
   const [form, setForm] = useState(null);
-  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: adminApi.categories });
-  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: adminApi.brands });
+  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => adminApi.categories() });
+  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => adminApi.brands() });
 
   useEffect(() => {
     if (product) setForm(formFrom(product));
@@ -71,7 +78,12 @@ export default function ProductEditPage() {
       return adminApi.updateProduct(id, body);
     },
     onSuccess: (p) => {
-      done("Saved. The website shows it within a few minutes.")(p);
+      if (form.live && !p.live && HIDDEN_BECAUSE[p.hiddenBy]) {
+        done("Saved, but it stays hidden")(p);
+        toast(HIDDEN_BECAUSE[p.hiddenBy], { icon: "⚠️", duration: 8000 });
+      } else {
+        done("Saved. The website shows it within a few minutes.")(p);
+      }
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["brands"] });
     },
@@ -247,6 +259,9 @@ export default function ProductEditPage() {
               <div>
                 <p className="text-sm font-medium text-navy">Show on website</p>
                 <p className="text-xs text-slate-500">{form.live ? "Customers can see and buy it" : "Hidden from customers"}</p>
+                {!product.live && HIDDEN_BECAUSE[product.hiddenBy] && (
+                  <p className="mt-1 text-xs text-amber-700">{HIDDEN_BECAUSE[product.hiddenBy]}</p>
+                )}
               </div>
               <Toggle checked={form.live} label="Show on website" onChange={(v) => set("live", v)} />
             </div>

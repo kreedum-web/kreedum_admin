@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import clsx from "clsx";
 import { ChevronDown, ChevronRight, Lock, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
@@ -22,17 +22,15 @@ export default function CategoriesPage() {
   const [expanded, setExpanded] = useState(() => new Set());
   const [creating, setCreating] = useState(null); // { name, parentSlug, displayOrder }
   const [editing, setEditing] = useState(null); // { slug, name, displayOrder }
-  const {data,isLoading,error,refetch,} = useQuery({queryKey: ["categories", brandFilter, departmentFilter],queryFn: () =>adminApi.categories({  brand: brandFilter,  department: departmentFilter,}),
-});
-
-  const {
-    data: brandsData = [],
-    isLoading: brandsLoading,
-  } = useQuery({
-    queryKey: ["brands"],
-    queryFn: adminApi.brands,
+  // Counts follow the brand / department filters. keepPreviousData: the page
+  // stays on screen (no spinner) while the new counts load.
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["categories", brandFilter, departmentFilter],
+    queryFn: () => adminApi.categories({ brand: brandFilter, department: departmentFilter }),
+    placeholderData: keepPreviousData,
   });
-  const categories = data || [];
+  const { data: brandsData = [], isLoading: brandsLoading } = useQuery({ queryKey: ["brands"], queryFn: () => adminApi.brands() });
+  const categories = useMemo(() => data || [], [data]);
   const bySlug = useMemo(() => bySlugOf(categories), [categories]);
 
   const refresh = (message) => () => {
@@ -53,7 +51,19 @@ export default function CategoriesPage() {
     mutationFn: ({ slug, body }) => adminApi.updateCategory(slug, body),
     onSuccess: (c, { body }) => {
       setEditing(null);
-      refresh(body.isActive === false ? `"${c.name}" is hidden from the menu` : body.isActive ? `"${c.name}" is back in the menu` : "Saved")();
+      if (body.isActive !== undefined) {
+        // Its products were hidden / shown too.
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+        queryClient.invalidateQueries({ queryKey: ["brands"] });
+      }
+      const products = (n) => `${n} product${n === 1 ? "" : "s"}`;
+      refresh(
+        body.isActive === false
+          ? `"${c.name}" is hidden${c.productsHidden ? `, with ${products(c.productsHidden)}` : ""}`
+          : body.isActive
+            ? `"${c.name}" is back on the website${c.productsShown ? `, with ${products(c.productsShown)}` : ""}`
+            : "Saved"
+      )();
     },
     onError,
   });
@@ -68,54 +78,48 @@ export default function CategoriesPage() {
     onError,
   });
 
- 
+  const setShown = (c, show) => {
+    if (!show && c.liveProducts > 0) {
+      const ok = confirm(
+        `Hide "${c.name}"? Its ${c.liveProducts} product${c.liveProducts === 1 ? "" : "s"} on the website (sub-categories included) will be hidden too.` +
+          (brandFilter || departmentFilter ? " (That number is for the current filter; other products in it are hidden as well.)" : "") +
+          "\n\nShowing it again brings them back, except products you switched off yourself."
+      );
+      if (!ok) return;
+    }
+    update.mutate({ slug: c.slug, body: { isActive: show } });
+  };
+
   const parents = categories.filter((c) => c.level < 3);
-  const filteredCategories = useMemo(() => {
-  return categories.filter((c) => {
-    if (
-      departmentFilter &&
-      c.path?.[0] !== departmentFilter
-    ) {
-      return false;
+  // Brand filter: only categories with that brand's products; department filter: that department.
+  const filteredCategories = useMemo(
+    () =>
+      categories.filter(
+        (c) => (!departmentFilter || c.path?.[0] === departmentFilter) && (!brandFilter || c.totalProducts > 0)
+      ),
+    [categories, departmentFilter, brandFilter]
+  );
+
+  const text = q.trim().toLowerCase();
+  const childrenByParent = useMemo(() => {
+    const map = new Map();
+    for (const c of filteredCategories) {
+      const parentSlug = c.path?.length > 1 ? c.path[c.path.length - 2] : null;
+      if (parentSlug) map.set(parentSlug, [...(map.get(parentSlug) || []), c]);
     }
+    return map;
+  }, [filteredCategories]);
 
-    if (brandFilter && c.totalProducts === 0) {
-      return false;
-    }
-
-    return true;
-  });
-}, [categories, departmentFilter, brandFilter]);
-
- const text = q.trim().toLowerCase();
-  const rows = text ? categories.filter((c) => categoryLabel(c, bySlug).toLowerCase().includes(text)) : categories;
-
-const childrenByParent = useMemo(() => {
-  const map = new Map();
-
-  for (const c of filteredCategories) {
-    const parentSlug =
-      c.path?.length > 1
-        ? c.path[c.path.length - 2]
-        : null;
-
-    if (parentSlug) {
-      map.set(parentSlug, [
-        ...(map.get(parentSlug) || []),
-        c,
-      ]);
-    }
-  }
-
-  return map;
-}, [filteredCategories]);
   const visibleRows = useMemo(() => {
-    if (text) return rows.map((c) => ({ category: c, depth: 0, showPath: true }));
+    // Searching: a flat list of matches (within the filters), with full paths.
+    if (text) {
+      return filteredCategories
+        .filter((c) => categoryLabel(c, bySlug).toLowerCase().includes(text))
+        .map((c) => ({ category: c, depth: 0, showPath: true }));
+    }
     const result = [];
     const visit = (parentSlug, depth) => {
-const items = parentSlug
-  ? childrenByParent.get(parentSlug) || []
-  : filteredCategories.filter((c) => c.level === 1);
+      const items = parentSlug ? childrenByParent.get(parentSlug) || [] : filteredCategories.filter((c) => c.level === 1);
       for (const category of items) {
         result.push({ category, depth, showPath: false });
         if (expanded.has(category.slug)) visit(category.slug, depth + 1);
@@ -123,9 +127,9 @@ const items = parentSlug
     };
     visit(null, 0);
     return result;
-  }, [text, rows, categories, filteredCategories,childrenByParent, expanded]);
+  }, [text, bySlug, filteredCategories, childrenByParent, expanded]);
 
-  if (isLoading) return <Spinner />;
+  if (isLoading && !data) return <Spinner />;
   if (error) return <ErrorBox error={errorMessage(error)} retry={refetch} />;
 
   return (
@@ -210,7 +214,7 @@ const items = parentSlug
         {visibleRows.length === 0 ? (
           <Empty title="No categories found" />
         ) : (
-          <Table head={["Category", { label: "Products on website", right: true }, "Order", "In menu", ""]}>
+          <Table head={["Category", { label: "Products on website", right: true }, "Order", "On website", ""]}>
             {visibleRows.map(({ category: c, depth, showPath }) => {
               const hasChildren = (childrenByParent.get(c.slug) || []).length > 0;
               return (
@@ -244,10 +248,15 @@ const items = parentSlug
                       </Badge>
                     )}
                     {!c.isActive && <Badge tone="gray">Hidden</Badge>}
+                    {c.isActive && c.hiddenByParent && (
+                      <span title="A category above it is hidden, so this one and its products are off the website too">
+                        <Badge tone="gray">Hidden (above)</Badge>
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-2 text-right tabular-nums">
-                  <Link to={`/products?category=${c.slug}`} className="hover:text-brand hover:underline" title="All products, including hidden ones">
+                  <Link to={`/products?category=${c.slug}${brandFilter ? `&brand=${brandFilter}` : ""}`} className="hover:text-brand hover:underline" title="All products, including hidden ones">
                     {c.liveProducts}
                     {c.totalProducts !== c.liveProducts && <span className="text-slate-400"> / {c.totalProducts}</span>}
                   </Link>
@@ -256,9 +265,9 @@ const items = parentSlug
                 <td className="px-4 py-2">
                   <Toggle
                     checked={c.isActive}
-                    label={`Show ${c.name} in the menu`}
+                    label={`Show ${c.name} on the website`}
                     disabled={update.isPending}
-                    onChange={(v) => update.mutate({ slug: c.slug, body: { isActive: v } })}
+                    onChange={(v) => setShown(c, v)}
                   />
                 </td>
                 <td className="px-4 py-2">
@@ -291,8 +300,8 @@ const items = parentSlug
                     {c.fromAdmin && (
                       <button
                         className="rounded p-1.5 text-red-500 hover:bg-red-50 disabled:opacity-30"
-                        title={c.totalProducts ? "Move its products to another category first" : "Delete"}
-                        disabled={c.totalProducts > 0 || remove.isPending}
+                        title={c.allProducts ? "Move its products to another category first" : "Delete"}
+                        disabled={c.allProducts > 0 || remove.isPending}
                         onClick={() => confirm(`Delete "${c.name}"?`) && remove.mutate(c.slug)}
                       >
                         <Trash2 className="size-4" />
@@ -307,7 +316,9 @@ const items = parentSlug
         )}
       </Card>
       <p className="mt-2 text-xs text-slate-400">
-        Select a parent category to expand or collapse its subcategories. Hidden categories disappear from the store's menu; their products can still be found by search. To move a product, open it under Products and choose its category.
+        Click the arrow next to a category to open or close its sub-categories. Hiding a category also hides its products and its
+        sub-categories' products from the website; they stay here in the admin, and come back when you show it again (except
+        products you switched off yourself). To move a product, open it under Products and choose its category.
       </p>
 
       <Modal
