@@ -54,6 +54,16 @@ export const adminApi = {
   /** Mark / unmark every product matching the filters as ready stock; dryRun only counts. */
   bulkReadyStock: (body) => api.post("/admin/products/bulk-ready-stock", body).then(data),
 
+  // Search: what customers search, same-meaning words, popular searches
+  searchStats: (days) => api.get("/admin/search/stats", { params: { days } }).then(data),
+  searchTest: (q) => api.get("/admin/search/test", { params: { q } }).then(data),
+  searchSynonyms: () => api.get("/admin/search/synonyms").then(data),
+  createSearchSynonym: (phrases) => api.post("/admin/search/synonyms", { phrases }).then(data),
+  updateSearchSynonym: (id, phrases) => api.put(`/admin/search/synonyms/${id}`, { phrases }).then(data),
+  deleteSearchSynonym: (id) => api.delete(`/admin/search/synonyms/${id}`).then(data),
+  searchPopular: () => api.get("/admin/search/popular").then(data),
+  updateSearchPopular: (body) => api.put("/admin/search/popular", body).then(data),
+
   // Home page product rows
   homeSections: () => api.get("/admin/home-sections").then(data),
   createHomeSection: (body) => api.post("/admin/home-sections", body).then(data),

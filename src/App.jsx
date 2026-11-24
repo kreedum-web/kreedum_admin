@@ -12,6 +12,7 @@ import ProductNewPage from "./pages/ProductNewPage";
 import BrandsPage from "./pages/BrandsPage";
 import CategoriesPage from "./pages/CategoriesPage";
 import HomeSectionsPage from "./pages/HomeSectionsPage";
+import SearchPage from "./pages/SearchPage";
 import HomeSectionEditPage from "./pages/HomeSectionEditPage";
 import ContentPage from "./pages/ContentPage";
 import CustomersPage from "./pages/CustomersPage";
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="enquiries" element={<EnquiriesPage />} />
         <Route path="traffic" element={<TrafficPage />} />
+        <Route path="search" element={<SearchPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="carts" element={<CartsPage />} />
         <Route path="carts/:userId" element={<CartDetailPage />} />

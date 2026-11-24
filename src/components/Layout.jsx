@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import {
-  BarChart3, Bell, BellRing, Boxes, ExternalLink, FolderTree, Home, Image, LayoutList, LogOut, Mail, Menu, Package,
+  BarChart3, Bell, BellRing, Boxes, ExternalLink, FolderTree, Home, Image, LayoutList, LogOut, Mail, Menu, Package, Search,
   ShoppingCart, Tags, Users, X,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
@@ -21,6 +21,7 @@ const NAV = [
   { to: "/carts", label: "Carts & wishlists", icon: ShoppingCart },
   { to: "/enquiries", label: "Enquiries", icon: Mail },
   { to: "/traffic", label: "Traffic", icon: BarChart3 },
+  { to: "/search", label: "Search", icon: Search },
 ];
 
 function Sidebar({ onNavigate }) {
