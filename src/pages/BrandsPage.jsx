@@ -12,7 +12,7 @@ export default function BrandsPage() {
   const [q, setQ] = useState("");
   const fileInput = useRef(null);
   const [logoFor, setLogoFor] = useState(null);
-  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["brands"], queryFn: adminApi.brands });
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["brands"], queryFn: () => adminApi.brands() });
 
   const update = useMutation({
     mutationFn: ({ slug, body }) => adminApi.updateBrand(slug, body),
