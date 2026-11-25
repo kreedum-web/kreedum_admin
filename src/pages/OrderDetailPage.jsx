@@ -74,11 +74,21 @@ function StatusActions({ order }) {
       >
         <p className="mb-3 text-sm text-slate-600">
           {order.orderNumber} will show as <b>{ORDER_STATUS[confirming]?.label}</b> to the customer.
-          {confirming === "CANCELLED" && " The customer gets a cancellation email."}
+          {confirming === "CONFIRMED" && " The customer gets an “Order confirmed” email."}
+          {confirming === "CANCELLED" && " The customer gets a cancellation email, with your reason below if you write one."}
           {destructive(confirming) && paidOnline && ` They paid online, so ${money(order.pricing.total)} is refunded to them through Cashfree.`}
           {confirming === "DELIVERED" && order.paymentMethod === "COD" && " The cash payment is marked as collected."}
         </p>
-        <Field label="Note for the order history (optional)" hint={confirming === "SHIPPED" ? "e.g. courier name and tracking number" : undefined}>
+        <Field
+          label={confirming === "CANCELLED" ? "Reason for the customer (optional)" : "Note for the order history (optional)"}
+          hint={
+            confirming === "SHIPPED"
+              ? "e.g. courier name and tracking number"
+              : confirming === "CANCELLED"
+                ? "Shown in the email and the order history, e.g. “Out of stock with the supplier.”"
+                : undefined
+          }
+        >
           <textarea className="input" rows={2} value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />
         </Field>
       </Modal>
