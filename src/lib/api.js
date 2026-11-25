@@ -43,6 +43,11 @@ export const adminApi = {
   markAllSeen: () => api.post("/admin/orders/seen").then(data),
   order: (id) => api.get(`/admin/orders/${id}`).then(data),
   setOrderStatus: (id, body) => api.patch(`/admin/orders/${id}/status`, body).then(data),
+  emailOrderCustomer: (id, body) => api.post(`/admin/orders/${id}/email`, body).then(data),
+  couriers: () => api.get("/admin/couriers").then(data),
+  createCourier: (body) => api.post("/admin/couriers", body).then(data),
+  updateCourier: (id, body) => api.patch(`/admin/couriers/${id}`, body).then(data),
+  deleteCourier: (id) => api.delete(`/admin/couriers/${id}`).then(data),
 
   products: (params) => api.get("/admin/products", { params }).then(data),
   product: (id) => api.get(`/admin/products/${id}`).then(data),

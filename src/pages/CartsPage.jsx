@@ -4,7 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { adminApi, errorMessage } from "../lib/api";
 import { ago, money } from "../lib/format";
-import { Card, Empty, ErrorBox, PageHeader, Pagination, Spinner, Table, Tabs } from "../components/ui";
+import { Badge, Card, Empty, ErrorBox, PageHeader, Pagination, Spinner, Table, Tabs } from "../components/ui";
 
 export default function CartsPage() {
   const [params, setParams] = useSearchParams();
@@ -81,6 +81,11 @@ export default function CartsPage() {
                     <Link to={`/carts/${r.customer.id}?from=${type}`} className="font-medium text-brand hover:underline">
                       {r.customer.name || r.customer.email || r.customer.phone}
                     </Link>
+                    {r.customer.team && (
+                      <span className="ml-2" title="An admin (team) account: e.g. your own test cart">
+                        <Badge tone="gray">Team</Badge>
+                      </span>
+                    )}
                     <div className="text-xs text-slate-500">
                       {[r.customer.phone, r.customer.email].filter(Boolean).join(" · ")}
                     </div>
